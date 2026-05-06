@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather API with Redis Cache</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .loader {
+            border-top-color: #3498db;
+            -webkit-animation: spinner 1.5s linear infinite;
+            animation: spinner 1.5s linear infinite;
+        }
+        @keyframes spinner {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-slate-100 flex items-center justify-center min-h-screen p-4 font-sans text-slate-800">
+    <div class="bg-white p-8 rounded-2xl shadow-lg w-full max-w-md">
+        <h1 class="text-3xl font-extrabold mb-2 text-center text-blue-600">Weather API</h1>
+        <p class="text-center text-slate-500 mb-6 text-sm">Powered by Visual Crossing & Redis</p>
+        
+        <div class="mb-4">
+            <input type="text" id="cityInput" placeholder="Enter city name (e.g., London, Tokyo)" 
+                class="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
+        </div>
+        <button onclick="getWeather()" 
+            class="w-full bg-blue-600 text-white font-semibold py-3 rounded-xl hover:bg-blue-700 active:scale-95 transition-all duration-200">
+            Fetch Weather
+        </button>
+
+        <!-- Loading state -->
+        <div id="loading" class="hidden mt-8 flex justify-center">
+            <div class="loader ease-linear rounded-full border-4 border-slate-200 h-10 w-10"></div>
+        </div>
+
+        <!-- Results Display -->
+        <div id="result" class="mt-8 hidden bg-slate-50 rounded-xl p-6 border border-slate-100">
+            <div class="flex justify-between items-start">
+                <div>
+                    <h2 id="cityName" class="text-xl font-bold text-slate-800"></h2>
+                    <p id="description" class="text-slate-500 capitalize"></p>
+                </div>
+                <div class="text-right">
+                    <p id="temp" class="text-4xl font-black text-blue-600"></p>
+                </div>
+            </div>
+            
+            <div class="mt-6 pt-4 border-t border-slate-200 flex justify-between items-center text-sm">
+                <span id="sourceBadge" class="px-3 py-1 rounded-full font-medium"></span>
+                <span id="timeTaken" class="text-slate-400 font-mono"></span>
+            </div>
+        </div>
+
+        <!-- Error Display -->
+        <div id="error" class="mt-6 hidden bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl text-sm text-center">
+        </div>
+    </div>
+
+    <script>
+        // Allow pressing Enter key to trigger search
+        document.getElementById("cityInput").addEventListener("keypress", function(event) {
+            if (event.key === "Enter") {
+                event.preventDefault();
+                getWeather();
+            }
+        });
+
+        async function getWeather() {
+            const city = document.getElementById('cityInput').value.trim();
+            if (!city) return;
+
+            const resultDiv = document.getElementById('result');
+            const errorDiv = document.getElementById('error');
+            const loadingDiv = document.getElementById('loading');
+            const sourceBadge = document.getElementById('sourceBadge');
+            
+            // Reset UI
+            resultDiv.classList.add('hidden');
+            errorDiv.classList.add('hidden');
+            loadingDiv.classList.remove('hidden');
+
+            try {
+                const start = performance.now();
+                const response = await fetch(`/api/weather/${city}`);
+                const data = await response.json();
+                const end = performance.now();
+                const timeTaken = (end - start).toFixed(0);
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to fetch weather data');
+                }
+
+                // Update UI with payload
+                document.getElementById('cityName').textContent = data.resolvedAddress;
+                document.getElementById('temp').textContent = `${data.currentConditions.temp}°F`;
+                document.getElementById('description').textContent = data.currentConditions.conditions;
+                document.getElementById('timeTaken').textContent = `${timeTaken}ms`;
+                
+                // Style the source badge dynamically
+                sourceBadge.textContent = data._source;
+                if (data._source === 'Redis Cache') {
+                    sourceBadge.className = 'px-3 py-1 rounded-full font-medium bg-green-100 text-green-700 text-xs';
+                } else {
+                    sourceBadge.className = 'px-3 py-1 rounded-full font-medium bg-amber-100 text-amber-700 text-xs';
+                }
+                
+                loadingDiv.classList.add('hidden');
+                resultDiv.classList.remove('hidden');
+
+            } catch (err) {
+                loadingDiv.classList.add('hidden');
+                errorDiv.textContent = err.message;
+                errorDiv.classList.remove('hidden');
+            }
+        }
+    </script>
+</body>
+</html>
